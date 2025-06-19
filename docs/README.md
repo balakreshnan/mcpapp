@@ -75,24 +75,24 @@ graph TB
 |-----------|------------|---------|
 | **Frontend** | Streamlit | Web UI and user interaction |
 | **Audio Processing** | Azure Whisper | Speech-to-text conversion |
-| **AI Engine** | Azure OpenAI GPT | Conversation and response generation |
-| **Knowledge Integration** | MCP Protocol | Microsoft Learn documentation access |
-| **Audio Output** | Google TTS | Text-to-speech conversion |
+| **AI Engine** | Azure OpenAI MCP Client | Conversation and Microsoft Learn integration |
+| **Knowledge Integration** | MCP Protocol | Direct Microsoft Learn documentation access |
+| **Audio Output** | Azure OpenAI TTS + Google TTS | Dual text-to-speech conversion |
 | **Deployment** | Azure App Service | Cloud hosting and scaling |
 
 ## 📊 Key Features
 
 ### Voice-First Interface
 - Natural language voice input
-- Real-time speech-to-text processing
-- Audio response generation
-- Hands-free interaction
+- Real-time speech-to-text processing via Azure Whisper
+- Dual audio response generation (Azure OpenAI TTS + Google TTS fallback)
+- Hands-free interaction with wide layout UI
 
-### Intelligent Context Retrieval
+### Enhanced MCP Integration
+- Direct Azure OpenAI MCP client integration
 - Real-time Microsoft Learn documentation access
-- MCP (Model Context Protocol) integration
-- Contextual information filtering
-- Multi-source knowledge aggregation
+- Streamlined response processing
+- Optimized for Microsoft Learn queries
 
 ### Scalable Architecture
 - Stateless application design
@@ -109,23 +109,28 @@ sequenceDiagram
     participant Audio as Audio Processor
     participant Whisper as Azure Whisper
     participant Chat as Chat Engine
-    participant GPT as Azure GPT
-    participant MCP as MCP Client
+    participant MCP as Azure MCP Client
     participant Learn as MS Learn API
-    participant TTS as Google TTS
+    participant AzureTTS as Azure TTS
+    participant GoogleTTS as Google TTS
     
     User->>UI: Voice Input
     UI->>Audio: Process Audio
     Audio->>Whisper: Transcribe
     Whisper->>Chat: Text Query
-    Chat->>GPT: Generate Response
-    GPT->>MCP: Query Documentation
+    Chat->>MCP: Query via MCP Client
     MCP->>Learn: Search Docs
     Learn->>MCP: Return Results
-    MCP->>GPT: Provide Context
-    GPT->>Chat: AI Response
-    Chat->>TTS: Generate Audio
-    TTS->>UI: Audio Response
+    MCP->>Chat: AI Response
+    
+    alt Azure TTS Available
+        Chat->>AzureTTS: Generate Audio
+        AzureTTS->>UI: Audio Response
+    else Fallback to Google TTS
+        Chat->>GoogleTTS: Generate Audio
+        GoogleTTS->>UI: Audio Response
+    end
+    
     UI->>User: Play Audio
 ```
 
