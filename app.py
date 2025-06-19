@@ -145,17 +145,7 @@ def main():
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    json_str = ""
-
-    # Sidebar for JSON input
-    with st.sidebar:
-        st.header("RAG Data Source")
-        file_path = "ai_learning_paths.json"
-        # Load JSON file as a string
-        with open(file_path, 'r', encoding='utf-8') as f:
-            json_str = f.read()
-        json_input = st.text_area("Enter JSON string for RAG content", height=200, value=json_str)
-        st.info("Enter a valid JSON string containing key-value pairs or a list of documents.")
+    json_input = ""
 
     # Display chat history
     for message in st.session_state.messages:
