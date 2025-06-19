@@ -145,6 +145,7 @@ def main():
         page_title="Microsoft Learn UI",
         layout="wide"  # 'centered' is default; use 'wide' for full page width
     )
+    st.title("Microsoft Learn UI Audio Interface")
 
     # Initialize session state for chat history
     if "messages" not in st.session_state:
