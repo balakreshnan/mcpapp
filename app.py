@@ -8,6 +8,10 @@ import os
 from gtts import gTTS
 import tempfile
 import uuid
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Azure OpenAI configuration (replace with your credentials)
 AZURE_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -44,6 +48,36 @@ def generate_audio_response(text):
     tts = gTTS(text=text, lang="en")
     temp_file = os.path.join(tempfile.gettempdir(), f"response_{uuid.uuid4()}.mp3")
     tts.save(temp_file)
+    return temp_file
+
+def generate_audio_response_gpt(text):
+    """Generate audio response using gTTS."""
+    # tts = gTTS(text=text, lang="en")
+    url = os.getenv("AZURE_OPENAI_ENDPOINT_TTS")  
+  
+    headers = {  
+        "Content-Type": "application/json",  
+        "Authorization": f"Bearer {os.environ['AZURE_OPENAI_KEY_TTS']}"  
+    }  
+    
+    data = {  
+        "model": "gpt-4o-mini-tts",  
+        "input": text,  
+        "voice": "alloy"  
+    }  
+    
+    response = requests.post(url, headers=headers, json=data)  
+    
+    print(response.status_code)  
+    # print(response.content)  # audio bytes or error message 
+    temp_file = os.path.join(tempfile.gettempdir(), f"response_{uuid.uuid4()}.mp3")
+    # response.content.save(temp_file)
+    if response.status_code == 200:  
+        with open(temp_file, "wb") as f:  
+            f.write(response.content)  
+        print("MP3 file saved successfully.")  
+    else:  
+        print(f"Error: {response.status_code}\n{response.text}")
     return temp_file
 
 def retrieve_relevant_content(query, json_data):
@@ -187,7 +221,8 @@ def main():
                 # Retrieve relevant content from JSON
                 context = retrieve_relevant_content(transcription, json_input)
                 response_text, mcp_result = msft_generate_chat_response(transcription, context)
-                response_audio_path = generate_audio_response(response_text)
+                # response_audio_path = generate_audio_response(response_text)
+                response_audio_path = generate_audio_response_gpt(response_text)
                 
                 st.markdown(response_text)
                 with open(response_audio_path, "rb") as f:
