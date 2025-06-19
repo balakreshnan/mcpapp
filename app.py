@@ -139,7 +139,12 @@ def msft_generate_chat_response(transcription, context):
     return retturntxt, None
 
 def main():
-    st.title("Voice Chat with RAG (Azure OpenAI)")
+    # st.title("Voice Chat with RAG (Azure OpenAI)")
+    # Use the wide layout
+    st.set_page_config(
+        page_title="Microsoft Learn UI",
+        layout="wide"  # 'centered' is default; use 'wide' for full page width
+    )
 
     # Initialize session state for chat history
     if "messages" not in st.session_state:
