@@ -2,15 +2,15 @@
 
 ## System Description
 
-MCPApp is a sophisticated voice-enabled conversational AI application that bridges human users with Microsoft Learn documentation through advanced AI technologies. The application implements a complete voice-to-voice interaction pipeline, leveraging Azure OpenAI services and the Model Context Protocol (MCP) for intelligent information retrieval.
+MCPApp is a sophisticated voice-enabled conversational AI application that bridges human users with Microsoft Learn documentation through enhanced Azure OpenAI MCP integration. The application implements a complete voice-to-voice interaction pipeline with dual text-to-speech capabilities, leveraging Azure OpenAI services for intelligent information retrieval and response generation.
 
 ## Core Architecture Principles
 
 ### 1. Voice-First Design
 The application prioritizes voice interaction as the primary user interface, creating a natural and accessible experience for users who prefer spoken communication over traditional text-based interfaces.
 
-### 2. Real-Time Documentation Access
-Through MCP integration, the system provides instant access to Microsoft Learn's comprehensive documentation, ensuring users receive current and accurate technical information.
+### 2. Enhanced MCP Integration
+Through direct Azure OpenAI MCP client integration, the system provides instant access to Microsoft Learn's comprehensive documentation with streamlined response processing.
 
 ### 3. Stateless Scalability
 The application design supports horizontal scaling on Azure App Service through stateless component architecture and efficient session management.
@@ -33,43 +33,48 @@ flowchart LR
 ```mermaid
 flowchart LR
     A[User Query] --> B[Context Retrieval]
-    B --> C[Azure OpenAI GPT]
-    C --> D[MCP Tool Calls]
-    D --> E[MS Learn API]
-    E --> F[Response Generation]
-    F --> G[Google TTS]
-    G --> H[Audio Response]
+    B --> C[Azure MCP Client]
+    C --> D[MS Learn API]
+    D --> E[Response Generation]
+    E --> F{TTS Selection}
+    F -->|Primary| G[Azure OpenAI TTS]
+    F -->|Fallback| H[Google TTS]
+    G --> I[Audio Response]
+    H --> I[Audio Response]
 ```
 
-## MCP Integration Specification
+## Enhanced MCP Integration Specification
 
-### Protocol Implementation
-The application implements MCP (Model Context Protocol) to enable seamless integration between the GPT model and external knowledge sources. This protocol allows for:
+### Azure OpenAI MCP Client Implementation
+The application uses Azure OpenAI's native MCP client for direct integration with Microsoft Learn documentation. This enhanced implementation provides:
 
-- Real-time documentation queries
-- Contextual information retrieval
-- Dynamic content filtering
-- Multi-source knowledge aggregation
+- Direct Azure OpenAI MCP client integration
+- Streamlined response processing without intermediary function calls
+- Optimized API calls with reduced latency
+- Specialized Microsoft Learn query handling
 
-### Tool Definition
-```json
-{
-  "type": "function",
-  "function": {
-    "name": "mcp_tool",
-    "description": "Queries the Microsoft Cloud Documentation information.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "The query to send to the MCP API."
+### MCP Client Configuration
+```python
+mcpclient = AzureOpenAI(  
+    base_url = os.getenv("AZURE_OPENAI_ENDPOINT") + "/openai/v1/",  
+    api_key= os.getenv("AZURE_OPENAI_KEY"),
+    api_version="preview"
+)
+
+response = mcpclient.responses.create(
+    model=CHAT_DEPLOYMENT_NAME,
+    tools=[
+        {
+            "type": "mcp",
+            "server_label": "MicrosoftLearn",
+            "server_url": "https://learn.microsoft.com/api/mcp",
+            "require_approval": "never"
         }
-      },
-      "required": ["query"]
-    }
-  }
-}
+    ],
+    input=transcription,
+    max_output_tokens=1500,
+    instructions="Generate a response using the MCP API tool."
+)
 ```
 
 ## Performance Characteristics

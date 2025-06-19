@@ -101,7 +101,7 @@ sequenceDiagram
 
 #### `msft_generate_chat_response(transcription, context)`
 
-Generates intelligent responses using Azure OpenAI with MCP tool integration.
+Generates intelligent responses using Azure OpenAI MCP client for direct Microsoft Learn integration.
 
 **Parameters:**
 - `transcription` (str): User's transcribed query
@@ -110,50 +110,50 @@ Generates intelligent responses using Azure OpenAI with MCP tool integration.
 **Returns:**
 - `tuple`: (response_text, mcp_result)
 
-**MCP Tool Definition:**
-```json
-{
-  "type": "function",
-  "function": {
-    "name": "mcp_tool",
-    "description": "Queries the Microsoft Cloud Documentation information.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "The query to send to the MCP API."
+**MCP Client Configuration:**
+```python
+mcpclient = AzureOpenAI(  
+    base_url = os.getenv("AZURE_OPENAI_ENDPOINT") + "/openai/v1/",  
+    api_key= os.getenv("AZURE_OPENAI_KEY"),
+    api_version="preview"
+)
+
+response = mcpclient.responses.create(
+    model=CHAT_DEPLOYMENT_NAME,
+    tools=[
+        {
+            "type": "mcp",
+            "server_label": "MicrosoftLearn",
+            "server_url": "https://learn.microsoft.com/api/mcp",
+            "require_approval": "never"
         }
-      },
-      "required": ["query"]
-    }
-  }
-}
+    ],
+    input=transcription,
+    max_output_tokens=1500,
+    instructions="Generate a response using the MCP API tool."
+)
 ```
 
 **Complete Flow Diagram:**
 ```mermaid
 sequenceDiagram
     participant App
-    participant AzureGPT
-    participant MCPClient
+    participant AzureMCP as Azure MCP Client
     participant MSLearnAPI
     
-    App->>AzureGPT: Chat completion request with tools
-    AzureGPT->>AzureGPT: Analyze query for tool usage
-    AzureGPT->>MCPClient: Function call: mcp_tool(query)
-    MCPClient->>MSLearnAPI: Search documentation
-    MSLearnAPI->>MCPClient: Return relevant docs
-    MCPClient->>AzureGPT: Tool response
-    AzureGPT->>AzureGPT: Generate final response
-    AzureGPT->>App: Return chat completion
+    App->>AzureMCP: Send query via responses.create()
+    AzureMCP->>AzureMCP: Process input with MCP tools
+    AzureMCP->>MSLearnAPI: Query Microsoft Learn
+    MSLearnAPI->>AzureMCP: Return relevant docs
+    AzureMCP->>AzureMCP: Generate final response
+    AzureMCP->>App: Return output_text
 ```
 
 ### 3. Audio Output API
 
 #### `generate_audio_response(text)`
 
-Converts text response to audio using Google Text-to-Speech.
+Converts text response to audio using Google Text-to-Speech (fallback option).
 
 **Parameters:**
 - `text` (str): Text to convert to speech
@@ -169,6 +169,30 @@ tts = gTTS(
     slow=False,
     tld="com"
 )
+```
+
+#### `generate_audio_response_gpt(text)`
+
+Converts text response to audio using Azure OpenAI TTS (primary option).
+
+**Parameters:**
+- `text` (str): Text to convert to speech
+
+**Returns:**
+- `str`: Path to generated audio file
+
+**Azure TTS Configuration:**
+```python
+url = os.getenv("AZURE_OPENAI_ENDPOINT_TTS")
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {os.environ['AZURE_OPENAI_KEY_TTS']}"
+}
+data = {
+    "model": "gpt-4o-mini-tts",
+    "input": text,
+    "voice": "alloy"
+}
 ```
 
 ## External API Integrations
