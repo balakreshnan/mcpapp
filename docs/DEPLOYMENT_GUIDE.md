@@ -54,6 +54,10 @@ AZURE_OPENAI_ENDPOINT=https://your-openai-resource.openai.azure.com/
 AZURE_OPENAI_KEY=your-api-key-here
 AZURE_OPENAI_DEPLOYMENT=your-gpt-deployment-name
 
+# Azure OpenAI TTS Configuration (Optional - falls back to Google TTS)
+AZURE_OPENAI_ENDPOINT_TTS=https://your-tts-resource.openai.azure.com/
+AZURE_OPENAI_KEY_TTS=your-tts-api-key-here
+
 # Optional: Project Configuration
 AZURE_AI_PROJECT=your-project-name
 AZURE_SUBSCRIPTION_ID=your-subscription-id
@@ -68,15 +72,23 @@ graph LR
     subgraph "Azure OpenAI Service"
         subgraph "Model Deployments"
             Whisper[whisper<br/>Speech-to-Text]
-            GPT[gpt-4 or gpt-35-turbo<br/>Chat Completion]
+            GPT[gpt-4 or gpt-35-turbo<br/>Chat Completion + MCP]
+            TTS[gpt-4o-mini-tts<br/>Text-to-Speech]
         end
     end
     
     subgraph "MCPApp"
         AudioInput[Audio Input] --> Whisper
-        Whisper --> TextProcessing[Text Processing]
-        TextProcessing --> GPT
-        GPT --> ResponseGeneration[Response Generation]
+        Whisper --> MCPClient[MCP Client]
+        MCPClient --> GPT
+        GPT --> TTS
+        TTS --> AudioOutput[Audio Output]
+    end
+    
+    subgraph "Fallback"
+        GoogleTTS[Google TTS<br/>Fallback Option]
+        GPT --> GoogleTTS
+        GoogleTTS --> AudioOutput
     end
 ```
 

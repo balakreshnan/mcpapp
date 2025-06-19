@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-MCPApp is a voice-enabled conversational AI application that provides intelligent responses to user queries by leveraging Azure OpenAI services and Microsoft Learn documentation through the Model Context Protocol (MCP). The application enables natural language conversations through voice input/output, powered by advanced AI models and real-time documentation retrieval.
+MCPApp is a voice-enabled conversational AI application that provides intelligent responses to user queries by leveraging Azure OpenAI services and Microsoft Learn documentation through enhanced Model Context Protocol (MCP) integration. The application features dual text-to-speech capabilities and specialized Microsoft Learn interface, enabling natural language conversations through voice input/output powered by advanced AI models and real-time documentation retrieval.
 
 ## High-Level System Architecture
 
@@ -26,7 +26,8 @@ graph TB
         AzureOpenAI[Azure OpenAI]
         Whisper[Whisper STT]
         GPT[GPT Chat Model]
-        MCPClient[MCP Client]
+        MCPClient[Azure OpenAI MCP Client]
+        AzureTTS[Azure OpenAI TTS]
     end
     
     subgraph "External Services"
@@ -45,15 +46,13 @@ graph TB
     VoiceInput --> AudioProcessor
     AudioProcessor --> Whisper
     Whisper --> ChatEngine
-    ChatEngine --> GPT
-    GPT --> MCPClient
-    MCPClient --> MCPServer
-    MCPServer --> MSLearnAPI
-    MSLearnAPI --> MCPServer
-    MCPServer --> MCPClient
-    MCPClient --> GPT
-    GPT --> ChatEngine
+    ChatEngine --> MCPClient
+    MCPClient --> MSLearnAPI
+    MSLearnAPI --> MCPClient
+    MCPClient --> ChatEngine
+    ChatEngine --> AzureTTS
     ChatEngine --> gTTS
+    AzureTTS --> AudioOutput
     gTTS --> AudioOutput
     AudioOutput --> UI
     UI --> User
@@ -61,6 +60,7 @@ graph TB
     ChatEngine --> SessionManager
     SessionManager --> ChatHistory
     AudioProcessor --> Storage
+    AzureTTS --> Storage
     gTTS --> Storage
     
     App --> AppService
@@ -75,6 +75,7 @@ graph LR
             F1[save_audio_file]
             F2[transcribe_audio]
             F3[generate_audio_response]
+            F3B[generate_audio_response_gpt]
             F4[retrieve_relevant_content]
             F5[msft_generate_chat_response]
             F6[main]
@@ -89,13 +90,16 @@ graph LR
             D6[base64]
             D7[tempfile]
             D8[uuid]
+            D9[python-dotenv]
         end
         
         subgraph "Configuration"
-            C1[AZURE_ENDPOINT]
-            C2[AZURE_API_KEY]
+            C1[AZURE_OPENAI_ENDPOINT]
+            C2[AZURE_OPENAI_KEY]
             C3[WHISPER_DEPLOYMENT_NAME]
             C4[CHAT_DEPLOYMENT_NAME]
+            C5[AZURE_OPENAI_ENDPOINT_TTS]
+            C6[AZURE_OPENAI_KEY_TTS]
         end
     end
     
@@ -130,10 +134,10 @@ sequenceDiagram
     participant AudioProc as Audio Processor
     participant Whisper as Azure Whisper
     participant ChatEngine as Chat Engine
-    participant GPT as Azure GPT
-    participant MCP as MCP Client
+    participant MCPClient as Azure MCP Client
     participant MSLearn as MS Learn API
-    participant TTS as Google TTS
+    participant AzureTTS as Azure TTS
+    participant gTTS as Google TTS
     
     User->>Streamlit: Record Voice Message
     Streamlit->>AudioProc: Audio Bytes
@@ -144,16 +148,21 @@ sequenceDiagram
     
     Streamlit->>ChatEngine: Process Query
     ChatEngine->>ChatEngine: Retrieve Relevant Content
-    ChatEngine->>GPT: Send Query with MCP Tools
-    GPT->>MCP: Function Call (mcp_tool)
-    MCP->>MSLearn: Documentation Query
-    MSLearn->>MCP: Documentation Response
-    MCP->>GPT: Tool Response
-    GPT->>ChatEngine: Generated Response
+    ChatEngine->>MCPClient: Send Query via MCP
+    MCPClient->>MSLearn: Documentation Query
+    MSLearn->>MCPClient: Documentation Response
+    MCPClient->>ChatEngine: Generated Response
     
-    ChatEngine->>TTS: Response Text
-    TTS->>TTS: Generate Audio File
-    TTS->>Streamlit: Audio Response
+    alt Azure TTS Available
+        ChatEngine->>AzureTTS: Response Text
+        AzureTTS->>AzureTTS: Generate Audio File
+        AzureTTS->>Streamlit: Audio Response
+    else Fallback to Google TTS
+        ChatEngine->>gTTS: Response Text
+        gTTS->>gTTS: Generate Audio File
+        gTTS->>Streamlit: Audio Response
+    end
+    
     Streamlit->>User: Display Text + Play Audio
     
     ChatEngine->>Streamlit: Update Session State
@@ -166,44 +175,42 @@ sequenceDiagram
 graph TB
     subgraph "MCPApp Client"
         ChatReq[Chat Request]
-        MCPFunc[MCP Function Definition]
-        ToolCall[Tool Call Handler]
+        MCPClient[Azure OpenAI MCP Client]
+        ResponseHandler[Response Handler]
     end
     
-    subgraph "Azure OpenAI"
-        GPTModel[GPT Model]
-        FunctionCall[Function Calling]
+    subgraph "Azure OpenAI MCP Service"
+        MCPEndpoint[MCP Endpoint]
+        MCPProcessor[MCP Request Processor]
     end
     
-    subgraph "MCP Protocol Layer"
-        MCPClient[MCP Client]
+    subgraph "Microsoft Learn MCP Server"
         MCPServer[MCP Server]
-        Protocol[JSON-RPC Protocol]
+        LearnAPI[Learn API Integration]
     end
     
     subgraph "Microsoft Learn"
-        LearnAPI[Learn API Endpoint]
+        LearnEndpoint[Learn API Endpoint]
         Documentation[Documentation DB]
         SearchIndex[Search Index]
     end
     
-    ChatReq --> GPTModel
-    GPTModel --> FunctionCall
-    FunctionCall --> MCPFunc
-    MCPFunc --> ToolCall
-    ToolCall --> MCPClient
-    MCPClient --> Protocol
-    Protocol --> MCPServer
+    ChatReq --> MCPClient
+    MCPClient --> MCPEndpoint
+    MCPEndpoint --> MCPProcessor
+    MCPProcessor --> MCPServer
     MCPServer --> LearnAPI
-    LearnAPI --> SearchIndex
+    LearnAPI --> LearnEndpoint
+    LearnEndpoint --> SearchIndex
     SearchIndex --> Documentation
-    Documentation --> LearnAPI
+    Documentation --> LearnEndpoint
+    LearnEndpoint --> LearnAPI
     LearnAPI --> MCPServer
-    MCPServer --> Protocol
-    Protocol --> MCPClient
-    MCPClient --> ToolCall
-    ToolCall --> GPTModel
-    GPTModel --> ChatReq
+    MCPServer --> MCPProcessor
+    MCPProcessor --> MCPEndpoint
+    MCPEndpoint --> MCPClient
+    MCPClient --> ResponseHandler
+    ResponseHandler --> ChatReq
 ```
 
 ## Deployment Architecture
@@ -273,14 +280,16 @@ mindmap
       Azure OpenAI
         Whisper STT
         GPT Chat Models
-        Function Calling
+        MCP Integration
+        TTS Service
     Integration
       MCP Protocol
-        Model Context Protocol
-        Tool Integration
+        Azure OpenAI MCP Client
+        Direct Integration
         Microsoft Learn API
       External APIs
-        Google TTS
+        Azure OpenAI TTS
+        Google TTS (Fallback)
         Microsoft Documentation
     Infrastructure
       Azure App Service
@@ -307,35 +316,37 @@ mindmap
 
 ### AI Services Layer
 - **Azure OpenAI Whisper**: Speech-to-text transcription service
-- **Azure OpenAI GPT**: Large language model for response generation
-- **MCP Client**: Handles Model Context Protocol communications
+- **Azure OpenAI MCP Client**: Direct integration with Microsoft Learn via MCP
+- **Azure OpenAI TTS**: Primary text-to-speech service (gpt-4o-mini-tts)
 
 ### External Integrations
-- **Microsoft Learn API**: Source of technical documentation
-- **MCP Server**: Protocol server for Microsoft Learn integration
-- **Google Text-to-Speech**: Converts text responses to audio
+- **Microsoft Learn API**: Source of technical documentation via MCP
+- **Azure OpenAI TTS**: Primary audio response generation
+- **Google Text-to-Speech**: Fallback audio response service
 
 ## Key Features
 
 ### Voice-First Interface
 - Natural language voice input processing
-- Real-time audio transcription
-- Text-to-speech response generation
-- Hands-free interaction capability
+- Real-time audio transcription via Azure Whisper
+- Dual text-to-speech response generation (Azure OpenAI + Google TTS)
+- Hands-free interaction capability with wide layout UI
 
-### Intelligent Context Retrieval
+### Enhanced MCP Integration
+- Direct Azure OpenAI MCP client integration
 - Real-time Microsoft Learn documentation access
-- Contextual information retrieval based on user queries
-- Dynamic content filtering and relevance scoring
+- Streamlined response processing without intermediary function calls
+- Optimized for Microsoft Learn queries and content
 
 ### Conversational Memory
-- Session-based chat history maintenance
+- Session-based chat history maintenance with audio playback
 - Context preservation across conversation turns
-- Multi-turn conversation support
+- Multi-turn conversation support with embedded audio responses
+- Wide layout interface for enhanced user experience
 
 ### Azure Cloud Integration
 - Scalable Azure App Service deployment
-- Azure OpenAI service integration
+- Comprehensive Azure OpenAI service integration (STT, Chat, TTS)
 - Enterprise-grade security and compliance
 
 ## Security Considerations
