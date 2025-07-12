@@ -61,6 +61,7 @@ def aoai_callback(query: str) -> str:
         """You are a AI Assesment assistant, Process the user query and provide a detailed response.
         Based on the scores between 1 to 5 where 1 is the lowest and 5 is the highest.
         Provide detail recommendation on a strategy to improve the AI maturity of the organization.
+        Provide a section on what use cases to start with based on the assesment output provided.
         Provide Step by step on guidance to implement the recommendations.
         """
     )
