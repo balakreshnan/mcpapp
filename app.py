@@ -9,6 +9,7 @@ import tempfile
 import uuid
 from mslearnvoiceui import voicemain
 from aiassess import assesmentmain
+from stfinetuneasses import finetuneassesment
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -24,6 +25,7 @@ st.set_page_config(
 nav_option = st.sidebar.selectbox("Navigation", ["Home", 
                                                 "MS Learn",
                                                 "AI Assesment",
+                                                "Fine Tuning Assesment",
                                                 "About"])
 
 # Display the selected page
@@ -31,7 +33,9 @@ if nav_option == "Home":
     assesmentmain()
 elif nav_option == "MS Learn":
     voicemain()
-elif nav_option == "Research Assistant":
+elif nav_option == "AI Assesment":
     assesmentmain()
+elif nav_option == "Fine Tuning Assesment":
+    finetuneassesment()
 else:
-    nav_option()
+    voicemain()
